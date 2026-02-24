@@ -2,13 +2,10 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
 export const send = mutation({
-  args: { 
-    body: v.string(), 
-    conversationId: v.id("conversations") 
-  },
+  args: { body: v.string(), conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthorized");
+    if (!identity) throw new Error("Unauthenticated");
 
     const user = await ctx.db
       .query("users")
@@ -17,15 +14,16 @@ export const send = mutation({
 
     if (!user) throw new Error("User not found");
 
+    // Fix: Provide the missing 'deleted' and 'reactions' fields
     const messageId = await ctx.db.insert("messages", {
       body: args.body,
       conversationId: args.conversationId,
       senderId: user._id,
-      deleted: false,
-      reactions: [],
+      deleted: false,       // Default value
+      reactions: [],        // Default value
     });
 
-    // Update the conversation with the last message ID
+    // Update conversation to show this as the latest message
     await ctx.db.patch(args.conversationId, {
       lastMessageId: messageId,
     });

@@ -5,39 +5,44 @@ import { Authenticated, AuthLoading } from "convex/react";
 import { Sidebar } from "@/components/sidebar";
 import { AuthSync } from "@/components/auth-sync";
 import { ChatWindow } from "@/components/chat-window";
+import { MessageSquare } from "lucide-react";
 
 export default function Home() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
   return (
-    <main className="flex h-screen bg-gray-100">
+    // Fixed height of screen and hidden overflow on the root
+    <main className="flex h-screen w-full bg-white overflow-hidden">
       <AuthLoading>
-        <div className="flex items-center justify-center w-full bg-white">Loading...</div>
+        <div className="flex items-center justify-center w-full h-full bg-white">
+          <div className="animate-pulse flex flex-col items-center gap-2">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <MessageSquare className="text-blue-600" />
+            </div>
+            <p className="text-sm font-medium text-gray-500">Loading your chats...</p>
+          </div>
+        </div>
       </AuthLoading>
 
       <Authenticated>
         <AuthSync />
+        {/* Sidebar maintains its own scrollbar */}
         <Sidebar onSelectUser={(id) => setActiveConversationId(id)} />
         
-        <div className="flex-1 flex flex-col bg-white">
+        {/* The main content area: flex-1 ensures it takes all remaining width */}
+        <div className="flex-1 h-full overflow-hidden relative">
           {activeConversationId ? (
-            <div className="flex-1 flex flex-col">
-              {/* Feature #3: We will build the ChatWindow component next! */}
-              <div className="flex-1 flex flex-col">
-                {activeConversationId ? (
-                  <ChatWindow conversationId={activeConversationId} />
-                ) : (
-                  <div className="flex-1 flex items-center justify-center">
-                    {/* (Keep your empty state UI here) */}
-                  </div>
-                )}
-              </div>
-            </div>
+            <ChatWindow conversationId={activeConversationId} />
           ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold">Select a user to start chatting</h2>
-                <p className="text-gray-500">Pick a friend from the left to send a message</p>
+            <div className="flex-1 h-full flex items-center justify-center bg-[#f8f9fa]">
+              <div className="text-center animate-in fade-in zoom-in duration-300">
+                <div className="w-20 h-20 bg-white rounded-3xl shadow-sm flex items-center justify-center mx-auto mb-4">
+                  <MessageSquare className="h-10 w-10 text-blue-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Your Messages</h2>
+                <p className="text-gray-500 max-w-xs mx-auto mt-2">
+                  Select a contact or group from the sidebar to start a conversation.
+                </p>
               </div>
             </div>
           )}

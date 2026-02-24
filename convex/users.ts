@@ -13,6 +13,7 @@ export const getMe = query({
   },
 });
 
+// Add this to your users.ts
 export const updatePresence = mutation({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();

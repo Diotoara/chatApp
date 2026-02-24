@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { Send, Smile, Trash2, Users, MoreVertical, Phone, X } from "lucide-react";
+import { Send, Smile, Trash2, Users, MoreVertical, Phone, X, Check, CheckCheck } from "lucide-react";
 import { format, isToday, isThisYear } from "date-fns";
 
 export function ChatWindow({ conversationId }: { conversationId: any }) {
@@ -16,6 +16,7 @@ export function ChatWindow({ conversationId }: { conversationId: any }) {
   const currentUser = useQuery(api.users.getMe);
   const typers = useQuery(api.conversations.getTypingIndicators, { conversationId });
   const conversation = useQuery(api.conversations.getConversationWithDetails, { conversationId });
+  const markAsRead = useMutation(api.conversations.markAsRead);
   
   const sendMessage = useMutation(api.messages.send);
   const deleteMessage = useMutation(api.messages.deleteMessage);
@@ -135,9 +136,22 @@ export function ChatWindow({ conversationId }: { conversationId: any }) {
                           {msg.body}
                         </p>
                       )}
-                      <p className="text-[9px] mt-1 text-right opacity-70 font-medium">
-                        {formatTimestamp(msg._creationTime)}
-                      </p>
+                      <div className="flex items-center justify-end gap-1 mt-1">
+                        <p className="text-[9px] opacity-70 font-medium">
+                          {formatTimestamp(msg._creationTime)}
+                        </p>
+                        
+                        {/* READ RECEIPT ICON */}
+                        {isMe && (
+                          <span>
+                            {msg.isRead ? (
+                              <CheckCheck className="h-3 w-3 text-blue-300" /> /* Double Blue */
+                            ) : (
+                              <Check className="h-3 w-3 opacity-70" /> /* Single Gray */
+                            )}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -90,19 +90,37 @@ export const getUnreadCount = query({
 export const list = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const currentUser = identity ? await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .unique() : null;
+
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId))
       .collect();
 
-    // Attach sender details to each message
+    // Get all members to check their lastReadTime
+    const members = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId))
+      .collect();
+
     return await Promise.all(
       messages.map(async (msg) => {
         const sender = await ctx.db.get(msg.senderId);
+        
+        // Find if the OTHER person has read this message
+        // (In 1-on-1, there is only one other person)
+        const otherMembers = members.filter(m => m.userId !== msg.senderId);
+        const isRead = otherMembers.length > 0 && otherMembers.every(m => m.lastReadTime >= msg._creationTime);
+
         return {
           ...msg,
-          senderName: sender?.name || "Unknown User",
+          senderName: sender?.name,
           senderImage: sender?.image,
+          isRead, // New boolean field
         };
       })
     );

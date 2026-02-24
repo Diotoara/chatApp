@@ -34,6 +34,32 @@ export const send = mutation({
   },
 });
 
+export const getUnreadCount = query({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return 0;
+    const user = await ctx.db.query("users").withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject)).unique();
+    if (!user) return 0;
+
+    const member = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_conversation_and_user", (q) => q.eq("conversationId", args.conversationId).eq("userId", user._id))
+      .unique();
+
+    if (!member) return 0;
+
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId))
+      .filter((q) => q.gt(q.field("_creationTime"), member.lastReadTime))
+      .filter((q) => q.neq(q.field("senderId"), user._id))
+      .collect();
+
+    return messages.length;
+  },
+});
+
 export const list = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {

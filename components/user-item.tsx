@@ -4,20 +4,23 @@ import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 
 export function UserItem({ user, onClick }: { user: any; onClick: () => void }) {
-  // 1. Find the conversation ID for this specific user
-  const conversationId = useQuery(api.conversations.getConversationWithUser, { 
-    otherUserId: user._id 
-  });
+// 1. Get Conversation ID
+    const conversationId = useQuery(api.conversations.getConversationWithUser, { 
+        otherUserId: user._id 
+    });
 
-  // 2. Get unread count (Feature 9)
-  const unreadCount = useQuery(api.messages.getUnreadCount, { 
-    conversationId: conversationId as any 
-  }) ?? 0;
+    // 2. ONLY run the unread count query if conversationId is truthy
+    // Note the change: we pass conversationId || skip
+    const unreadCount = useQuery(
+        api.messages.getUnreadCount, 
+        conversationId ? { conversationId } : "skip" // This prevents the error
+    ) ?? 0;
 
-  // 3. Get typing status for the sidebar (Feature 8)
-  const typers = useQuery(api.conversations.getTypingIndicators, { 
-    conversationId: conversationId as any 
-  });
+    // 3. Same for typers
+    const typers = useQuery(
+        api.conversations.getTypingIndicators, 
+        conversationId ? { conversationId } : "skip"
+    );
   const isTyping = typers && typers.length > 0;
 
   // 4. Presence Logic (Feature 7)

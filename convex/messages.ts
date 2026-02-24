@@ -34,6 +34,35 @@ export const send = mutation({
   },
 });
 
+export const deleteMessage = mutation({
+  args: { messageId: v.id("messages") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    if (!user) throw new Error("User not found");
+
+    const message = await ctx.db.get(args.messageId);
+    if (!message) throw new Error("Message not found");
+
+    // Check if the person deleting it is the sender
+    if (message.senderId !== user._id) {
+      throw new Error("You can only delete your own messages");
+    }
+
+    // "Soft Delete": Keep the record, but mark it deleted
+    await ctx.db.patch(args.messageId, {
+      deleted: true,
+      body: "This message was deleted",
+    });
+  },
+});
+
 export const getUnreadCount = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {

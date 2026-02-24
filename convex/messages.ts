@@ -126,3 +126,38 @@ export const list = query({
     );
   },
 });
+
+export const toggleReaction = mutation({
+  args: { messageId: v.id("messages"), emoji: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return;
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    if (!user) return;
+
+    const message = await ctx.db.get(args.messageId);
+    if (!message) return;
+
+    const reactions = message.reactions || [];
+    const existingIndex = reactions.findIndex(
+      (r) => r.userId === user._id && r.emoji === args.emoji
+    );
+
+    let newReactions = [...reactions];
+
+    if (existingIndex > -1) {
+      // Remove reaction if it exists
+      newReactions.splice(existingIndex, 1);
+    } else {
+      // Add new reaction
+      newReactions.push({ userId: user._id, emoji: args.emoji });
+    }
+
+    await ctx.db.patch(args.messageId, { reactions: newReactions });
+  },
+});

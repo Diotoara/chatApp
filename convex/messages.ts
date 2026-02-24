@@ -90,9 +90,21 @@ export const getUnreadCount = query({
 export const list = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId))
       .collect();
+
+    // Attach sender details to each message
+    return await Promise.all(
+      messages.map(async (msg) => {
+        const sender = await ctx.db.get(msg.senderId);
+        return {
+          ...msg,
+          senderName: sender?.name || "Unknown User",
+          senderImage: sender?.image,
+        };
+      })
+    );
   },
 });

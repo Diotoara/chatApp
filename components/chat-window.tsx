@@ -86,19 +86,60 @@ export function ChatWindow({ conversationId }: { conversationId: any }) {
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#f8f9fa]">
           {messages?.map((msg) => {
             const isMe = msg.senderId === currentUser?._id;
+            const showSenderInfo = conversation?.isGroup && !isMe;
+
             return (
-              <div key={msg._id} className={`flex ${isMe ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
-                <div className={`max-w-[70%] px-4 py-2 rounded-2xl shadow-sm ${
-                  isMe ? "bg-blue-600 text-white rounded-tr-none" : "bg-white text-gray-800 rounded-tl-none border border-gray-100"
-                }`}>
-                  {msg.deleted ? (
-                    <p className="text-sm italic opacity-60">🚫 This message was deleted</p>
-                  ) : (
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.body}</p>
+              <div 
+                key={msg._id} 
+                className={`flex items-end gap-2 group/msg ${isMe ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-1 duration-300`}
+              >
+                {/* Sender Avatar for others */}
+                {showSenderInfo && (
+                  <div className="shrink-0 mb-1">
+                    <img 
+                      src={msg.senderImage || "/default-avatar.png"} 
+                      className="w-8 h-8 rounded-full object-cover shadow-sm border border-white"
+                    />
+                  </div>
+                )}
+
+                <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-[75%] relative`}>
+                  {/* Sender Name for others */}
+                  {showSenderInfo && (
+                    <span className="text-[11px] font-bold text-gray-500 ml-1 mb-1">
+                      {msg.senderName}
+                    </span>
                   )}
-                  <p className={`text-[9px] mt-1 text-right opacity-70`}>
-                    {formatTimestamp(msg._creationTime)}
-                  </p>
+
+                  <div className="flex items-center gap-2 group">
+                    {/* TRASH CAN - Shows only on hover for your own messages */}
+                    {isMe && !msg.deleted && (
+                      <button
+                        onClick={() => deleteMessage({ messageId: msg._id })}
+                        className="opacity-0 group-hover/msg:opacity-100 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        title="Delete message"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+
+                    <div className={`px-4 py-2.5 rounded-2xl shadow-sm ${
+                      isMe 
+                        ? "bg-blue-600 text-white rounded-tr-none" 
+                        : "bg-white text-gray-800 rounded-tl-none border border-gray-100"
+                    }`}>
+                      {msg.deleted ? (
+                        <p className="text-sm italic opacity-60">🚫 This message was deleted</p>
+                      ) : (
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                          {msg.body}
+                        </p>
+                      )}
+                      <p className="text-[9px] mt-1 text-right opacity-70 font-medium">
+                        {formatTimestamp(msg._creationTime)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             );

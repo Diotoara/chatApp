@@ -224,27 +224,11 @@ export const getMyConversations = query({
         const convo = await ctx.db.get(m.conversationId);
         if (!convo) return null;
 
-        // 1. Get Last Message
+        // --- Get basic message info ---
         const lastMessage = convo.lastMessageId 
           ? await ctx.db.get(convo.lastMessageId) 
           : null;
 
-        // 2. Get Typing Indicators
-        const typers = await ctx.db
-          .query("conversationMembers")
-          .withIndex("by_conversationId", (q) => q.eq("conversationId", convo._id))
-          .filter((q) => q.gt(q.field("typingUntil"), Date.now()))
-          .filter((q) => q.neq(q.field("userId"), user._id))
-          .collect();
-
-        const typingNames = await Promise.all(
-          typers.map(async (t) => {
-            const u = await ctx.db.get(t.userId);
-            return u?.name?.split(" ")[0];
-          })
-        );
-
-        // 3. Get Unread Count
         const unreads = await ctx.db
           .query("messages")
           .withIndex("by_conversationId", (q) => q.eq("conversationId", convo._id))
@@ -252,41 +236,42 @@ export const getMyConversations = query({
           .filter((q) => q.neq(q.field("senderId"), user._id))
           .collect();
 
-        // 4. Resolve Name/Image (Fixed: image property assigned to return object)
+        // --- THE ONLINE STATUS LOGIC ---
         let name = convo.name;
-        let image = ""; // Default empty string or group icon URL
+        let image = ""; 
+        let lastSeen = 0; // Default to 0 (offline)
 
         if (!convo.isGroup) {
+          // Find the other person in this chat
           const otherMember = await ctx.db
             .query("conversationMembers")
             .withIndex("by_conversationId", (q) => q.eq("conversationId", convo._id))
             .filter((q) => q.neq(q.field("userId"), user._id))
             .unique();
+            
           const otherUser = otherMember ? await ctx.db.get(otherMember.userId) : null;
+          
           name = otherUser?.name;
-          image = otherUser?.image ?? ""; // Use user image for 1-on-1
+          image = otherUser?.image ?? "";
+          // THIS LINE PASSES THE DATA TO YOUR SIDEBAR
+          lastSeen = otherUser?.lastSeen ?? 0; 
         }
 
         return {
           ...convo,
           name,
-          image, // Now this is explicitly part of the returned object
+          image,
+          lastSeen, // Now convo.lastSeen will exist in your frontend!
           lastMessage: lastMessage?.body,
           lastMessageTime: lastMessage?._creationTime,
           unreadCount: unreads.length,
-          typingNames: typingNames.filter((n): n is string => !!n),
         };
       })
     );
 
-    // 5. Fixed Sort (Safely handles nulls with 0 default)
-    const validConversations = conversations.filter((c): c is NonNullable<typeof c> => c !== null);
-    
-    return validConversations.sort((a, b) => {
-      const timeA = a.lastMessageTime ?? 0;
-      const timeB = b.lastMessageTime ?? 0;
-      return timeB - timeA;
-    });
+    return conversations
+      .filter((c): c is NonNullable<typeof c> => c !== null)
+      .sort((a, b) => (b.lastMessageTime ?? 0) - (a.lastMessageTime ?? 0));
   },
 });
 
@@ -296,12 +281,19 @@ export const getConversationWithDetails = query({
     const convo = await ctx.db.get(args.conversationId);
     if (!convo) return null;
 
-    if (convo.isGroup) return convo;
-
-    // For 1-on-1, fetch the other user's profile
     const identity = await ctx.auth.getUserIdentity();
-    const currentUser = await ctx.db.query("users").withIndex("by_clerkId", (q) => q.eq("clerkId", identity?.subject!)).unique();
-    
+    if (!identity) return null;
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    if (convo.isGroup) {
+      return { ...convo, isOnline: false }; // Groups themselves don't have "online" status
+    }
+
+    // For 1-on-1, fetch the other user's profile and check presence
     const otherMember = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId))
@@ -309,10 +301,17 @@ export const getConversationWithDetails = query({
       .unique();
 
     const otherUser = otherMember ? await ctx.db.get(otherMember.userId) : null;
+    
+    // Calculate online status: true if lastSeen was within the last 60 seconds
+    const isOnline = otherUser?.lastSeen 
+      ? Date.now() - otherUser.lastSeen < 60000 
+      : false;
+
     return {
       ...convo,
       name: otherUser?.name,
       image: otherUser?.image,
+      isOnline: isOnline, // This property will now exist for TypeScript
     };
   },
 });

@@ -15,6 +15,7 @@ export const getMe = query({
 
 // Add this to your users.ts
 export const updatePresence = mutation({
+  args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return;
@@ -25,6 +26,7 @@ export const updatePresence = mutation({
       .unique();
 
     if (user) {
+      // Date.now() provides the current timestamp
       await ctx.db.patch(user._id, { lastSeen: Date.now() });
     }
   },

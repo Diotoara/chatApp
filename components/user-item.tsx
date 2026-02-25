@@ -40,7 +40,7 @@ export function UserItem({ user, onClick }: { user: any; onClick: () => void }) 
 
       <div className="text-left flex-1 min-w-0">
         <div className="flex justify-between items-center">
-          <p className="font-semibold text-sm truncate">{user.name}</p>
+          <p className="text-sm font-semibold text-slate-800 dark:text-white transition-colors truncate">{user.name}</p>
           {unreadCount > 0 && (
             <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
               {unreadCount}
@@ -52,7 +52,7 @@ export function UserItem({ user, onClick }: { user: any; onClick: () => void }) 
           {isTyping ? (
             <span className="text-blue-500 font-medium italic animate-pulse">typing...</span>
           ) : (
-            <span className={isOnline ? "text-green-600" : "text-gray-400"}>
+            <span className={isOnline ? "text-green-600" : "text-xs text-slate-500 dark:text-slate-400"}>
               {isOnline ? "Online" : "Offline"}
             </span>
           )}

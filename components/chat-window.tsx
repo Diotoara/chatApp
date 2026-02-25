@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { Send, Smile, Trash2, Users, MoreVertical, Phone, X, Check, CheckCheck } from "lucide-react";
+import { Send, Smile, Trash2, Users, MoreVertical, Phone, X, Check, CheckCheck, MessageSquarePlus, MessageSquareDashed } from "lucide-react";
 import { format, isToday, isThisYear } from "date-fns";
 
 export function ChatWindow({ conversationId }: { conversationId: any }) {
@@ -20,7 +20,7 @@ export function ChatWindow({ conversationId }: { conversationId: any }) {
   const currentUser = useQuery(api.users.getMe);
   const typers = useQuery(api.conversations.getTypingIndicators, { conversationId });
   const conversation = useQuery(api.conversations.getConversationWithDetails, { conversationId });
-  
+
   // Mutations
   const markAsRead = useMutation(api.conversations.markAsRead);
   const sendMessage = useMutation(api.messages.send);
@@ -34,6 +34,21 @@ export function ChatWindow({ conversationId }: { conversationId: any }) {
       markAsRead({ conversationId });
     }
   }, [messages?.length, conversationId, markAsRead]);
+
+  // --- EMPTY STATE: NO CONVERSATION SELECTED ---
+  if (!conversationId) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-[#020617] text-center p-8">
+        <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mb-4">
+          <MessageSquarePlus className="h-10 w-10 text-purple-600 dark:text-purple-400" />
+        </div>
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Your Messages</h3>
+        <p className="text-slate-500 dark:text-slate-400 max-w-xs">
+          Select a conversation from the sidebar to start chatting with your friends or groups.
+        </p>
+      </div>
+    );
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -105,6 +120,17 @@ export function ChatWindow({ conversationId }: { conversationId: any }) {
 
         {/* Message Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-transparent relative custom-scrollbar">
+          {/* --- EMPTY STATE: NO MESSAGES IN CONVERSATION --- */}
+          {messages !== undefined && messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-3 opacity-60">
+              <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/50 dark:border-white/5">
+                <MessageSquareDashed className="h-8 w-8 text-purple-500 mx-auto mb-2" />
+                <p className="text-sm font-medium text-slate-900 dark:text-white">No messages yet</p>
+                <p className="text-xs text-slate-500">Send a message to start the conversation!</p>
+              </div>
+            </div>
+          )}
+
           {messages?.map((msg: any) => {
             const isMe = msg.senderId === currentUser?._id;
             const showSenderInfo = conversation?.isGroup && !isMe;
@@ -124,10 +150,9 @@ export function ChatWindow({ conversationId }: { conversationId: any }) {
                     <span className="text-[11px] font-semibold text-slate-500 mb-1 ml-1">{msg.senderName}</span>
                   )}
 
-                  <div className="relative group/msg flex items-center gap-2">
-                    {/* Hover Actions: Reaction & Delete */}
+                  <div className="relative group/msg px-4 -mx-4 py-1 flex items-center gap-2">
                     {!msg.deleted && (
-                      <div className={`absolute top-0 ${isMe ? "-left-12" : "-right-12"} hidden group-hover/msg:flex items-center bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-white/10 rounded-lg p-1 z-30`}>
+                      <div className={`absolute top-1/2 -translate-y-1/2 ${isMe ? "-left-12" : "-right-6"} hidden group-hover/msg:flex items-center bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-white/10 rounded-lg p-1 z-30`}>
                         <button 
                           onClick={() => setPickerMessageId(pickerMessageId === msg._id ? null : msg._id)}
                           className="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-500 hover:text-purple-500"
@@ -145,7 +170,6 @@ export function ChatWindow({ conversationId }: { conversationId: any }) {
                       </div>
                     )}
 
-                    {/* Emoji Picker Popover */}
                     {pickerMessageId === msg._id && (
                       <div className={`absolute -top-10 ${isMe ? "right-0" : "left-0"} flex gap-1 bg-white dark:bg-slate-800 border dark:border-white/10 p-1.5 rounded-full shadow-2xl z-40`}>
                         {COMMON_EMOJIS.map(emoji => (
@@ -173,18 +197,14 @@ export function ChatWindow({ conversationId }: { conversationId: any }) {
                       ) : (
                         <>
                           <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.body}</p>
-                          
-                          {/* --- FIXED REACTION DISPLAY --- */}
                           {msg.reactions && msg.reactions.length > 0 && (
                             <div className="absolute -bottom-3 left-2 flex gap-1">
                               {(() => {
-                                // 1. Group the reaction objects by emoji
                                 const counts = msg.reactions.reduce((acc: Record<string, number>, r: any) => {
                                   acc[r.emoji] = (acc[r.emoji] || 0) + 1;
                                   return acc;
                                 }, {});
 
-                                // 2. Render the entries (emoji + count)
                                 return Object.entries(counts).map(([emoji, count]) => (
                                   <div key={emoji} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-full px-1.5 py-0.5 text-[10px] shadow-sm flex items-center gap-1">
                                     <span>{emoji}</span>
@@ -212,8 +232,6 @@ export function ChatWindow({ conversationId }: { conversationId: any }) {
 
         {/* Input Area */}
         <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border-t border-slate-200/50 dark:border-white/5 shrink-0 p-4">
-          
-          {/* SAFE TYPING CHECK: (typers?.length ?? 0) handles the undefined loading state */}
           <div className={`${(typers?.length ?? 0) > 0 ? "h-6 opacity-100" : "h-0 opacity-0"} transition-all duration-300 mb-1 px-2 overflow-hidden`}>
             <p className="text-[10px] text-purple-500 font-bold italic animate-pulse">
               {typers?.join(", ")} {(typers?.length ?? 0) > 1 ? "are" : "is"} typing...
@@ -243,10 +261,12 @@ export function ChatWindow({ conversationId }: { conversationId: any }) {
             <X className="h-4 w-4 cursor-pointer text-slate-400 hover:text-white" onClick={() => setShowMembers(false)} />
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
+            {/* --- EMPTY STATE: NO MEMBERS FOUND (Unlikely, but safe) --- */}
+            {groupMembers !== undefined && groupMembers.length === 0 && (
+              <p className="text-xs text-center text-slate-500 mt-4">No members found</p>
+            )}
             {groupMembers?.map((member: any) => {
-              // REAL-TIME ONLINE CALCULATION
               const isOnline = member.lastSeen && (Date.now() - member.lastSeen < 60000);
-              
               return (
                 <div key={member._id} className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg transition-colors">
                   <div className="relative shrink-0">
